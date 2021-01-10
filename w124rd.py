@@ -3,6 +3,9 @@ import discord
 import config
 import asyncpg
 from prettytable import PrettyTable
+from datetime import datetime
+from pytz import timezone
+from humanize import precisedelta
 import aiohttp
 
 
@@ -26,7 +29,8 @@ class W124RD(commands.Bot):
             'cogs.tag',
             'cogs.mod',
             'cogs.level',
-            'cogs.chess'
+            'cogs.chess',
+            'cogs.snipe'
         )
         self.db = None
         self.slounge = None
@@ -92,6 +96,15 @@ async def sql(ctx, *, query):
     else:
         res = await w124rd.db.execute(query)
         await ctx.send(f'```sql\n{res}```')
+
+
+@w124rd.command()
+async def trump(ctx):
+    est = timezone('US/Eastern')
+    kick = datetime(2021, 1, 20, hour=12).astimezone(est)
+    now = datetime.now().astimezone(est)
+    delta = precisedelta((kick - now).total_seconds())
+    await ctx.send(f'Time until Trump gets kicked out:\n\n{delta}')
 
 
 w124rd.run(config.TOKEN)
