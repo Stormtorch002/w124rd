@@ -57,6 +57,13 @@ class Chess(commands.Cog):
 
     @commands.command(name='chess')
     async def _chess(self, ctx, user: discord.Member, *, fen=None):
+        """Starts a chess game with another player.
+           You may start with a custom position by providing a FEN at the end of the command.
+
+           Games take place in DMs and all moves are made with Standard Algebraic Notation.
+
+           **Usage:** `$chess <opponent> [FEN]`
+        """
         if fen:
             try:
                 board = chess.Board(fen)
@@ -128,8 +135,8 @@ class Chess(commands.Cog):
                 else:
                     self.in_game.pop(white)
                     self.in_game.pop(black)
-                    await check2_msg.author.send('Ok, you resigned. What a loser lmfao')
-                    await other.send('Your opponent has resigned. Congrats on winning lol')
+                    await check2_msg.author.send('**You lost - Resignation**')
+                    await other.send('**You won - Resignation**')
                     return
 
         task = self.bot.loop.create_task(wait_for())
@@ -146,42 +153,64 @@ class Chess(commands.Cog):
                 self.in_game[opp]['draining'] = False
 
                 def check(msg):
-                    return msg.author.id == user.id and not msg.guild and self.pattern.match(msg.content.lower())
+                    return msg.author.id == user.id and not msg.guild
 
-                try:
-                    m = await self.bot.wait_for('message', check=check, timeout=self.in_game[user]['seconds'])
-                except asyncio.TimeoutError:
-                    return
+                while True:
+                    try:
+                        m = await self.bot.wait_for('message', check=check, timeout=self.in_game[user]['seconds'])
+                    except asyncio.TimeoutError:
+                        task.cancel()
+                        self.in_game.pop(user)
+                        self.in_game.pop(opp)
+                        await user.send('**You lost - Timeout**')
+                        await opp.send('**You won - Timeout**')
+                        return
 
-                else:
-                    move = chess.Move.from_uci(m.content.lower())
-                    if move not in board.legal_moves:
-                        await user.send('Not a legal move - try again.')
-                    else:
-                        board.push_san(m.content.lower())
+                    try:
+                        board.push_san(m.content)
                         self.in_game[user]['draining'] = False
-                        if board.turn:
-                            w_content = 'Your opponent moved. Your turn now.'
-                            b_content = 'You moved. Waiting on your opponent.'
-                        else:
-                            w_content = 'You moved. Waiting on your opponent.'
-                            b_content = 'Your opponent moved. Your turn now.'
-                        await white.send(w_content, file=fmtbrd(board, 'white'))
-                        await black.send(b_content, file=fmtbrd(board, 'black'))
-                        if board.is_stalemate():
-                            self.in_game.pop(user)
-                            self.in_game.pop(opp)
-                            task.cancel()
-                            await user.send('Good job, buddy. You stalemated. LOLLLLL.')
-                            await opp.send('LMFAO bro u got stalemated. RIP.')
-                            return
-                        if board.is_checkmate():
-                            self.in_game.pop(user)
-                            self.in_game.pop(opp)
-                            task.cancel()
-                            await user.send('You won. GG.')
-                            await opp.send('You lost. GG.')
-                            return
+                        break
+                    except ValueError:
+                        await user.send('Not a legal move.\n'
+                                        '- Uppercase all pieces and lowercase all squares\n'
+                                        '- More than one of the same piece could move to the square')
+
+                if board.is_stalemate():
+                    self.in_game.pop(user)
+                    self.in_game.pop(opp)
+                    task.cancel()
+                    await user.send('**Draw - Stalemate**')
+                    await opp.send('**Draw - Stalemate**')
+                    return
+                if board.is_checkmate():
+                    self.in_game.pop(user)
+                    self.in_game.pop(opp)
+                    task.cancel()
+                    await user.send('**You won - Checkmate**')
+                    await opp.send('**You lost - Checkmate**')
+                    return
+                if board.is_insufficient_material():
+                    self.in_game.pop(user)
+                    self.in_game.pop(opp)
+                    task.cancel()
+                    await user.send('**Draw - Insufficient Material**')
+                    await opp.send('**Draw - Insufficient Material**')
+                    return
+                if board.is_repetition(3):
+                    self.in_game.pop(user)
+                    self.in_game.pop(opp)
+                    task.cancel()
+                    await user.send('**Draw - Threefold Repetition**')
+                    await opp.send('**Draw - Threefold Repetition**')
+                    return
+                if board.turn:
+                    w_content = 'Your opponent moved. Your turn now.'
+                    b_content = 'You moved. Waiting on your opponent.'
+                else:
+                    w_content = 'You moved. Waiting on your opponent.'
+                    b_content = 'Your opponent moved. Your turn now.'
+                await white.send(w_content, file=fmtbrd(board, 'white'))
+                await black.send(b_content, file=fmtbrd(board, 'black'))
             else:
                 return
 
