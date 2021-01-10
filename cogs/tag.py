@@ -18,6 +18,7 @@ class Tag(commands.Cog):
         self.bot = bot
         self.db = self.bot.db
         self.names = []
+        self.ranks = {}
         self.bot.loop.create_task(self.get_names())
 
     async def get_names(self):
@@ -33,7 +34,7 @@ class Tag(commands.Cog):
         """
         name = name.lower()
         if name not in self.names:
-            similar = [f'`  $tag {n}`' for n in self.names if is_similar(name, n)]
+            similar = [f'`$tag {n}`' for n in self.names if is_similar(name, n)]
             if not similar:
                 await ctx.send(f'The tag `{name}` wasn\'t found; no suggestions.')
             else:
@@ -157,43 +158,72 @@ class Tag(commands.Cog):
         if name not in self.names:
             return await ctx.send(f'A tag with name/alias `{name}` was not found.')
 
-        query = 'SELECT names, text, user_id, uses, RANK () OVER (ORDER BY uses) "rank" ' \
-                'FROM tags WHERE $1 = ANY(names)'
+        query = """SELECT (
+                       SELECT COUNT(*)
+                       FROM tags second
+                       WHERE second.uses >= first.uses
+                   ) AS rank, uses, user_id, names, text
+                   FROM tags first
+                   WHERE $1 = ANY(names)
+                """
+
         res = await self.db.fetchrow(query, name)
 
         creator = self.bot.slounge.get_member(res['user_id'])
+        if creator:
+            color = creator.color
+            mention = creator.mention
+        else:
+            color = ctx.author.color
+            mention = 'Creator left server'
         res['names'].pop(0)
 
         embed = discord.Embed(
             title=f'$tag {name}',
             description=res['text'],
-            color=creator.color
+            color=color
         ).add_field(
-            name='Creator', value=creator.mention, inline=False
+            name='Creator', value=mention
         ).add_field(
-            name='Uses', value=f'`{res["uses"]}`', inline=False
+            name='Uses', value=f'`{res["uses"]}`'
         ).add_field(
-            name='Rank', value=f'**#{res["rank"]}**', inline=False
-        ).add_field(
-            name='Aliases', value=', '.join(f'`{name}`' for name in res['names']), inline=False
-        ).set_author(
+            name='Rank', value=f'**#{res["rank"]}**'
+        )
+        if creator:
+            embed.set_author(
             name=f'Tag by {creator}',
             icon_url=str(creator.avatar_url_as(format='gif' if creator.is_avatar_animated() else 'png'))
         )
+        aliases = ', '.join(f'`{name}`' for name in res['names'])
+        if aliases:
+            embed.add_field(name='Aliases', value=aliases)
+
         await ctx.send(embed=embed)
 
     @tag.command(aliases=['list'])
-    async def all(self, ctx, user: discord.Member, page: int = 1):
+    async def all(self, ctx, *, args=None):
         """Lists all the tags (ordered by usage). You can provide a user to only show tags for that user. If there
         are too many tags to show at once, multiple pages will be created and you can provide a page to go to.
 
            **Usage:** `$tag all [user] [page]`
         """
+        page_num = 1
+        user = None
+        if args:
+            args = args.split()
+            if args[-1].isdigit():
+                page_num = int(args.pop(-1))
+            if user:
+                user = await commands.MemberConverter().convert(ctx, ' '.join(args))
+
         if not user:
             res = await self.db.fetch('SELECT uses, names FROM tags ORDER BY uses DESC')
         else:
             query = 'SELECT uses, names FROM tags WHERE user_id = $1 ORDER BY uses DESC'
             res = await self.db.fetch(query, user.id)
+            if not res:
+                return await ctx.send(f'`{user}` hasn\'t made any tags yet.')
+
         pag = commands.Paginator(prefix='', suffix='', max_size=420)
 
         i = 1
@@ -211,7 +241,7 @@ class Tag(commands.Cog):
             pages.append(embed)
             i += 1
         try:
-            page = pages[page - 1]
+            page = pages[page_num - 1]
         except IndexError:
             return await ctx.send('That page doesn\'t exist ((')
         await ctx.send(embed=page)
