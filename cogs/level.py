@@ -77,18 +77,23 @@ class Levels(commands.Cog):
         self.xp_cooldowns = {}
         self.zerotwo = 'https://media.istockphoto.com/videos/abstract-grid-background-loop-video-id1171924854?s=640x640'
         self.bot.loop.create_task(self.get_bytes())
-        self.bot.loop.create_task(self.fetch_xp())
-        self.bot.xp = {}
 
     async def get_bytes(self):
         async with aiohttp.ClientSession() as session:
             async with session.get(self.zerotwo) as resp:
                 self.zerotwo = await resp.read()
 
-    async def fetch_xp(self):
-        res = await self.bot.db.fetch('SELECT user_id, total_xp FROM xp')
-        for row in res:
-            self.bot.xp[row['user_id']] = row['total_xp']
+    async def get_xp_info(self, user):
+        query = """SELECT (
+                       SELECT COUNT(*)
+                       FROM xp second
+                       WHERE second.total_xp >= first.total_xp
+                   ) AS rank, total_xp, color, image
+                   FROM xp first
+                   WHERE user_id = $1
+                """
+        res = await self.bot.db.fetchrow(query, user.id)
+        return res
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -96,18 +101,19 @@ class Levels(commands.Cog):
             return
         if message.channel.id not in self.disabled_channels and not message.author.bot:
             if message.author.id not in self.xp_cooldowns or self.xp_cooldowns[message.author.id] < time.time():
-                if message.author.id not in self.bot.xp:
-                    self.bot.xp[message.author.id] = 0
-                    query = '''INSERT INTO xp (user_id, total_xp, color, image) 
+                try:
+                    increment = random.randint(3, 7)
+                    query = '''INSERT INTO xp (user_id, "total_xp", color, image) 
                                VALUES ($1, $2, $3, $4)
                                ON CONFLICT (user_id)
-                               DO NOTHING'''
-                    await self.bot.db.execute(query, message.author.id, 0, '#c0ffee', self.zerotwo)
-                else:
-                    old_level = get_level(self.bot.xp[message.author.id])
-                    increment = random.randint(3, 7)
-                    self.bot.xp[message.author.id] += increment
-                    new_level = get_level(self.bot.xp[message.author.id])
+                               DO UPDATE SET "total_xp" = xp.total_xp + $2
+                            '''
+                    await self.bot.db.execute(query, message.author.id, increment, '#c0ffee', self.zerotwo)
+                    query = 'SELECT total_xp FROM xp WHERE user_id = $1'
+                    xp = await self.bot.db.fetchrow(query, message.author.id)
+                    new = xp['total_xp']
+                    old = new - increment
+                    new_level, old_level = get_level(new), get_level(old)
 
                     authorroles = [role.id for role in message.author.roles]
                     roles = {lvl: self.leveled_roles[lvl] for lvl in self.leveled_roles if lvl <= new_level}
@@ -125,10 +131,6 @@ class Levels(commands.Cog):
                                 role = message.guild.get_role(role)
                                 await message.author.remove_roles(role)
 
-                    query = 'UPDATE xp SET total_xp = total_xp + $1 WHERE user_id = $2'
-                    await self.bot.db.execute(query, increment, message.author.id)
-                    self.xp_cooldowns[message.author.id] = time.time() + 30
-
                     if new_level >= 6:
                         role = message.guild.get_role(750444981449130092)
                         if role not in message.author.roles:
@@ -139,6 +141,8 @@ class Levels(commands.Cog):
                         if new_level == 6:
                             msg += f'\n\n*You can now send images here.*'
                         await message.channel.send(msg)
+                except Exception as e:
+                    await message.channel.send(e)
 
     @commands.group(name='rank', invoke_without_command=True)
     async def _rank(self, ctx, *, mem: discord.Member = None):
@@ -149,18 +153,15 @@ class Levels(commands.Cog):
 
         m = mem if mem else ctx.author
 
-        try:
-            xp = self.bot.xp[m.id]
-        except KeyError:
-            return await ctx.send(f"`{m}` isn't enlisted in the server level system yet.")
-
         async with ctx.channel.typing():
-            rank = sorted([self.bot.xp[user] for user in self.bot.xp.keys()], reverse=True).index(xp) + 1
+
             start = time.time()
 
-            query = 'SELECT color, image FROM xp WHERE user_id = $1'
-            res = await self.bot.db.fetchrow(query, m.id)
-            color, im = res['color'], res['image']
+            res = await self.get_xp_info(m)
+            try:
+                color, im, rank, xp = res['color'], res['image'], res['rank'], res['total_xp']
+            except TypeError:
+                return await ctx.send(f"`{m}` isn't enlisted in the server level system yet.")
 
             if im == self.zerotwo:
                 tip = 'You can do `$rank image <image url>` to change your rank card image!'
@@ -297,7 +298,7 @@ class Levels(commands.Cog):
                                outline=(0, 0, 0, 255), xy=(300 + size, 220))
                         text_length = font.getsize(text)[0]
                         border(draw=draw, font=font, thiccness=1, text=role_name, fill=color_tuple,
-                               outline=(0, 0, 0, 255), xy=(260 + size + text_length, 220))
+                               outline=(0, 0, 0, 255), xy=(300 + size + text_length, 220))
                     else:
                         font = ImageFont.truetype('./assets/fonts/mono.ttf', 35)
                         text = f'{progress}/{total_xp}'
@@ -395,7 +396,7 @@ class Levels(commands.Cog):
         if page < 1:
             return await ctx.send('The page must be 1 or greater.')
 
-        sql = 'SELECT user_id, total_xp FROM xp ORDER BY xp DESC'
+        sql = 'SELECT user_id, total_xp FROM xp ORDER BY total_xp DESC'
         res = await self.bot.db.fetch(sql)
 
         rows = [res[i:i + 12] for i in range(0, len(res), 12)]
@@ -410,9 +411,9 @@ class Levels(commands.Cog):
         embed.set_author(name=f'Page {page}', icon_url=str(ctx.guild.icon_url_as(format='png')))
         embed.set_footer(text=f'Page {page}/{pages}')
 
+        rank = 1
         for row in rows:
             member, xp = ctx.guild.get_member(row['user_id']), row['total_xp']
-            rank = res.index(row) + 1
             lvl, name = get_level(xp), f'#{rank}'
 
             if member is not None:
@@ -424,6 +425,7 @@ class Levels(commands.Cog):
                 member = f'<@{member_id}>'
                 value = f'{member}\n**Level:** `{lvl}`\n**Total XP:** `{xp}`'
                 embed.add_field(name=name, value=value)
+            rank += 1
 
         await ctx.send(embed=embed)
 
