@@ -77,11 +77,16 @@ class NPC(commands.Cog):
 
         **Usage:** `$npc <alias> <message>`"""
         if alias.lower() not in self.npcs:
-            return await ctx.send(f'An NPC with alias `{alias}` not found.')
+            return await ctx.send(f'There isn\'t an NPC with alias `{alias}`.')
         npc = self.npcs[alias.lower()]
         if ctx.channel.id not in self.webhooks:
             return await ctx.send('NPCs can only be used in bot-cmds and general.')
-        await self.webhooks[ctx.channel.id].send(message, avatar_url=npc['avatar_url'], useralias=npc['useralias'])
+        await self.webhooks[ctx.channel.id].send(
+            message,
+            avatar_url=npc['avatar_url'],
+            username=npc['username'],
+            allowed_mentions=self.bot.allowed_mentions
+        )
         await ctx.message.delete()
 
     @npc.command(aliases=['create'])
