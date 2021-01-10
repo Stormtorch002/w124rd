@@ -429,6 +429,13 @@ class Levels(commands.Cog):
 
         await ctx.send(embed=embed)
 
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def addxp(self, ctx, member: discord.Member, xp: int):
+        query = 'UPDATE xp SET total_xp = total_xp + $1 WHERE user_id = $2'
+        await self.bot.db.execute(query, xp, member.id)
+        await ctx.send(':white_check_mark:')
+
 
 def setup(bot):
     bot.add_cog(Levels(bot))
