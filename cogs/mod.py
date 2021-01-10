@@ -68,7 +68,7 @@ class Mod(commands.Cog):
         query = 'INSERT INTO warns (user_id, mod_id, reason, time) VALUES ($1, $2, $3, $4)'
         await self.db.execute(query, user.id, mod.id, reason, int(time.time()))
         query = 'SELECT COUNT(id) FROM warns WHERE user_id = $1'
-        return (await self.db.fetchrow(query))['count']
+        return (await self.db.fetchrow(query, user.id))['count']
 
     async def check_swears(self, message):
         if message.author.bot:
