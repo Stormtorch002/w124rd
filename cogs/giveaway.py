@@ -7,7 +7,7 @@ from cogs.utils.timeparser import TimeConverter
 import asyncio
 from emoji import UNICODE_EMOJI
 import random
-import re
+from cogs.level import get_level
 
 
 class Giveaway(commands.Cog):
@@ -48,7 +48,13 @@ class Giveaway(commands.Cog):
                 else:
                     break
             embed = msg.embeds[0].to_dict()
-            embed['fields'][0] += f'\n{winner.mention}'
+            value = embed['fields'][0]['value']
+            mentions = value.splitlines()
+            if winner.mention not in mentions:
+                if value == 'Nobody':
+                    embed['fields'][0]['value'] = f'\n{winner.mention}'
+                else:
+                    embed['fields'][0]['value'] += f'\n{winner.mention}'
             await msg.edit(embed=discord.Embed.from_dict(embed))
             return await channel.send(f'Our new winner is {winner.mention}! Congrats ))')
 
@@ -91,7 +97,7 @@ class Giveaway(commands.Cog):
             ).add_field(
                 name='Prize', value=res['prize'], inline=False
             ).add_field(
-                name='\u200b', value=f'{channel.mention}\n[Jump to Giveaway]({msg.jump_url})', inline=False
+                name='Channel', value=f'{channel.mention}\n[Jump to Giveaway]({msg.jump_url})', inline=False
             )
             await host.send(embed=embed)
         embed = discord.Embed(
@@ -132,26 +138,27 @@ class Giveaway(commands.Cog):
 
     async def reqs(self, res, emoji, member, *, remove_reaction=True):
         es = str(emoji)
-        emoji = es if es in UNICODE_EMOJI else emoji.id
 
         async def remove():
-            print('yes')
-            await self.bot.http.remove_reaction(
-                res['ch_id'],
-                res['msg_id'],
-                emoji,
-                member.id
-            )
+            msg = await self.bot.get_channel(res['ch_id']).fetch_message(res['msg_id'])
+            await msg.remove_reaction(es, member)
 
         if 0 < res['role_id'] < 69:
-            pattern = re.compile(r'^[A-Za-z]+ [(]Level (\d+)[)] [|] Activity Roles$')
-            activity = discord.utils.find(lambda r: pattern.match(r.name), member.roles)
-            if activity:
-                level = int(pattern.findall(activity.name)[0])
+            query = 'SELECT total_xp FROM xp WHERE user_id = $1'
+            xp = await self.bot.db.fetchrow(query, member.id)
+            if not xp:
+                req = False
+            else:
+                level = get_level(xp['total_xp'])
                 if res['role_id'] > level:
                     if remove_reaction:
                         await remove()
-                    return False, f'You can\'t enter this giveaway because you need to be at least **Level {level}**!'
+                    req = False
+                else:
+                    req = True
+            if not req:
+                return False, f'You can\'t enter this giveaway because you need to be at least ' \
+                              f'**Level {res["role_id"]}**!'
         else:
             if res['role_id'] not in [r.id for r in member.roles]:
                 if remove_reaction:
@@ -166,17 +173,12 @@ class Giveaway(commands.Cog):
         if payload.member.bot:
             return
         if payload.message_id in self.msg_ids:
-            print('yes1')
-            query = 'SELECT emoji, role_id FROM gvwys WHERE msg_id = $1'
+            query = 'SELECT * FROM gvwys WHERE msg_id = $1'
             res = await self.bot.db.fetchrow(query, payload.message_id)
             if str(payload.emoji) != res['emoji']:
-                print(str(payload.emoji), res['emoji'])
                 return
-            print('yes2')
             if res['role_id']:
-                print('yes3')
                 enter, msg = await self.reqs(res, payload.emoji, payload.member)
-                print('yes4')
                 if not enter:
                     await payload.member.send(msg)
 
@@ -355,10 +357,9 @@ class Giveaway(commands.Cog):
             else:
                 mention = ctx.guild.get_role(role_id).mention
                 value = f'Must have the {mention} role'
-            embed.add_field(
-                name='Requirement', value=value, inline=False
-            )
-            embed.set_field_at(0, name='Requirement', value=value, inline=False)
+            embed = embed.to_dict()
+            embed['fields'].insert(0, {'name': 'Requirement', 'value': value, 'inline': False})
+            embed = discord.Embed.from_dict(embed)
         embed = await channel.send(embed=embed)
         await embed.add_reaction(emoji)
         self.msg_ids.append(embed.id)
