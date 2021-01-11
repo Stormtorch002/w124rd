@@ -70,12 +70,12 @@ class Giveaway(commands.Cog):
             entered.remove(winner)
 
             if res['role_id']:
-                if await self.reqs(res, reaction.emoji, winner, remove_reaction=False):
-                    break
-            else:
-                winners.append(winner)
-                if len(winners) == res['winners']:
-                    break
+                if not (await self.reqs(res, reaction.emoji, winner, remove_reaction=False))[0]:
+                    continue
+
+            winners.append(winner)
+            if len(winners) == res['winners']:
+                break
 
         host = self.bot.get_user(res['host_id'])
         if len(winners) == 0:
@@ -340,7 +340,7 @@ class Giveaway(commands.Cog):
 
         end = int(time.time() + duration)
         embed = discord.Embed(
-            title=prize,
+            title=prize + f' - {winners} Winners',
             description=desc,
             timestamp=datetime.utcfromtimestamp(end),
             color=discord.Colour.blue()
@@ -348,8 +348,6 @@ class Giveaway(commands.Cog):
             name='\U0001f451 Host', value=ctx.author.mention, inline=False
         ).add_field(
             name='\U000023f0 Duration', value=precisedelta(duration), inline=False
-        ).add_field(
-            name='\U0001f389 Winners', value=f'`{winners}`', inline=False
         ).set_footer(
             text='React with the first emoji below to enter\nEnding time \u27a1',
             icon_url='https://cdn.discordapp.com/emojis/795660003369025546.gif?v=1'
@@ -357,7 +355,7 @@ class Giveaway(commands.Cog):
                             'download_-_2020-12-26T181245.032.png')
         if role_id:
             if level:
-                value = f'Must be at least **level {role_id}**'
+                value = f'Must be at least **Level {role_id}**'
             else:
                 mention = ctx.guild.get_role(role_id).mention
                 value = f'Must have the {mention} role'
