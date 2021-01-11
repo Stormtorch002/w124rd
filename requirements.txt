@@ -1,6 +1,7 @@
 discord.py
 git+https://github.com/Rapptz/discord-ext-menus
 git+https://github.com/Stormtorch002/jishaku
+discord-flags
 requests
 Pillow
 colour
@@ -12,3 +13,4 @@ pytz
 emoji
 chess
 svglib
+mtranslate

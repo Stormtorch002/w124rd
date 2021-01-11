@@ -106,12 +106,14 @@ class Giveaway(commands.Cog):
             color=discord.Colour.blue(),
             timestamp=datetime.utcnow()
         ).add_field(
-            name='Winners', value=mentions, inline=False
+            name='\U0001f389 Winners', value=mentions, inline=False
         ).add_field(
-            name='Host', value=host.mention, inline=False
+            name='\U0001f451 Host', value=host.mention, inline=False
         ).set_footer(
-            text='Time ended \u27a1'
-        )
+            text='\U000023f0 Time ended \u27a1',
+            icon_url='https://cdn.discordapp.com/emojis/795660003369025546.gif?v=1'
+        ).set_thumbnail(url='https://cdn.discordapp.com/attachments/725093929481142292/792530547120799764/'
+                            'download_-_2020-12-26T181245.032.png')
         await msg.edit(embed=embed)
 
     async def wait_for_msg(self, ctx, timeout):
@@ -343,14 +345,16 @@ class Giveaway(commands.Cog):
             timestamp=datetime.utcfromtimestamp(end),
             color=discord.Colour.blue()
         ).add_field(
-            name='Host', value=ctx.author.mention, inline=False
+            name='\U0001f451 Host', value=ctx.author.mention, inline=False
         ).add_field(
-            name='Duration', value=precisedelta(duration), inline=False
+            name='\U000023f0 Duration', value=precisedelta(duration), inline=False
         ).add_field(
-            name='Winners', value=f'`{winners}`', inline=False
+            name='\U0001f389 Winners', value=f'`{winners}`', inline=False
         ).set_footer(
-            text='React with the first emoji below to enter\nEnding time \u27a1'
-        )
+            text='React with the first emoji below to enter\nEnding time \u27a1',
+            icon_url='https://cdn.discordapp.com/emojis/795660003369025546.gif?v=1'
+        ).set_thumbnail(url='https://cdn.discordapp.com/attachments/725093929481142292/792530547120799764/'
+                            'download_-_2020-12-26T181245.032.png')
         if role_id:
             if level:
                 value = f'Must be at least **level {role_id}**'
@@ -358,7 +362,7 @@ class Giveaway(commands.Cog):
                 mention = ctx.guild.get_role(role_id).mention
                 value = f'Must have the {mention} role'
             embed = embed.to_dict()
-            embed['fields'].insert(0, {'name': 'Requirement', 'value': value, 'inline': False})
+            embed['fields'].insert(0, {'name': '\U0001f4dd Requirement', 'value': value, 'inline': False})
             embed = discord.Embed.from_dict(embed)
         embed = await channel.send(embed=embed)
         await embed.add_reaction(emoji)

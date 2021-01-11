@@ -7,6 +7,7 @@ from datetime import datetime
 from pytz import timezone
 from humanize import precisedelta
 import aiohttp
+from mtranslate import translate
 
 
 class W124RD(commands.Bot):
@@ -30,7 +31,8 @@ class W124RD(commands.Bot):
             'cogs.mod',
             'cogs.level',
             'cogs.chess',
-            'cogs.snipe'
+            'cogs.snipe',
+            'cogs.count'
         )
         self.db = None
         self.slounge = None
@@ -100,11 +102,21 @@ async def sql(ctx, *, query):
 
 @w124rd.command()
 async def trump(ctx):
+    """Shows the amount of time before noon on January 20th (the time Trump's presidency will end)."""
     est = timezone('US/Eastern')
     kick = datetime(2021, 1, 20, hour=12).astimezone(est)
     now = datetime.now().astimezone(est)
     delta = precisedelta((kick - now).total_seconds())
     await ctx.send(f'Time until Trump gets kicked out:\n\n{delta}')
+
+
+@w124rd.command(name='translate', aliases=['googletrans', 'trans'])
+async def _translate(ctx, lang, *, text):
+    """Translates text to the language given.
+
+       **Usage:** `$translate <language code> <text>`
+    """
+    await ctx.send(await ctx.bot.loop.run_in_executor(None, translate, text, lang, 'auto'))
 
 
 w124rd.run(config.TOKEN)
