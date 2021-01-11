@@ -32,7 +32,9 @@ class W124RD(commands.Bot):
             'cogs.level',
             'cogs.chess',
             'cogs.snipe',
-            'cogs.count'
+            'cogs.count',
+            'cogs.reminder',
+            'cogs.eh'
         )
         self.db = None
         self.slounge = None
@@ -46,6 +48,7 @@ class W124RD(commands.Bot):
             await self.db.execute(f.read())
 
         await self.wait_until_ready()
+        self.storch = self.get_user(718475543061987329)
         self.slounge = self.get_guild(self.slounge_id)
 
         for cog_name in self.COG_NAMES:
