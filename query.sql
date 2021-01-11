@@ -7,3 +7,4 @@ CREATE TABLE IF NOT EXISTS bans ("id" SERIAL PRIMARY KEY, "user_id" BIGINT UNIQU
 CREATE TABLE IF NOT EXISTS xp ("id" SERIAL PRIMARY KEY, "user_id" BIGINT UNIQUE, "total_xp" INTEGER, "color" VARCHAR(7), "image" BYTEA);
 CREATE TABLE IF NOT EXISTS snipes ("id" SERIAL PRIMARY KEY, "content" TEXT, "user_id" BIGINT, "url" TEXT, "delete" BOOLEAN, "time" INTEGER, "sent" INTEGER);
 CREATE TABLE IF NOT EXISTS counts ("id" SERIAL PRIMARY KEY, "user_id" BIGINT, "msg" TEXT, "count" INTEGER, "word" VARCHAR(32), "global" BOOLEAN);
+CREATE TABLE IF NOT EXISTS reminders ("id" SERIAL PRIMARY KEY, "user_id" BIGINT, "reminder" TEXT, "time" INTEGER);
