@@ -389,8 +389,8 @@ class Levels(commands.Cog):
         file = discord.File(fp=BytesIO(b), filename='background.png')
         await ctx.send('Your rank card has been updated!', file=file)
 
-    @commands.command()
-    async def levels(self, ctx, page: int = 1):
+    @commands.command(aliases=['leaaderboard'])
+    async def lb(self, ctx, page: int = 1):
         """Shows the XP leaderboard."""
 
         if page < 1:
