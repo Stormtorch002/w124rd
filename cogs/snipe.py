@@ -11,7 +11,7 @@ class Snipe(commands.Cog):
 
     @commands.command()
     async def snipe(self, ctx, amount: int = 1):
-        query = 'SELECT * FROM snipes WHERE delete = $1 ORDER BY "id" LIMIT $2'
+        query = 'SELECT * FROM snipes WHERE delete = $1 ORDER BY "id" DESC LIMIT $2'
         res = (await self.bot.db.fetch(query, True, amount))[-1]
 
         a = ctx.guild.get_member(res['user_id'])
@@ -29,7 +29,7 @@ class Snipe(commands.Cog):
 
     @commands.command()
     async def editsnipe(self, ctx, amount: int = 1):
-        query = 'SELECT * FROM snipes WHERE delete = $1 ORDER BY "id" LIMIT $2'
+        query = 'SELECT * FROM snipes WHERE delete = $1 ORDER BY "id" DESC LIMIT $2'
         res = (await self.bot.db.fetch(query, False, amount))[-1]
 
         a = ctx.guild.get_member(res['user_id'])
