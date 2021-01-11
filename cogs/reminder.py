@@ -24,7 +24,7 @@ class Reminder(commands.Cog):
 
             self.bot.loop.create_task(task())
 
-    @commands.command()
+    @commands.command(aliases=['remind', 'remindme'])
     async def reminder(self, ctx, *, args):
         """Sets a reminder.
            I will DM you your reminder after the time specified.
@@ -37,7 +37,7 @@ class Reminder(commands.Cog):
 
         text = ' '.join([word for word in args.split()
                          if len(word) == 1 or (not word[0].isdigit() and not word[1].isdigit())])
-        text = text.rstrip('in')
+        text = text.rstrip(' in')
         t = int(time.time() + length)
 
         query = 'INSERT INTO reminders (user_id, time, reminder) VALUES ($1, $2, $3)'
@@ -70,6 +70,17 @@ class Reminder(commands.Cog):
             embed.add_field(name=row['reminder'], value=f'In {delta}', inline=False)
 
         await ctx.send(embed=embed)
+
+    @commands.command(aliases=['removereminder', 'deletereminder', 'unremind', 'unremindme'])
+    async def unreminder(self, ctx, *, reminder):
+        query = 'SELECT reminder, id FROM reminders WHERE LOWER(reminder) = $1'
+        res = await self.bot.db.fetchrow(query, reminder.lower())
+        if not res:
+            return await ctx.send(f'You don\'t have a reminder called `{reminder}`.')
+
+        query = 'DELETE FROM reminders WHERE id = $1'
+        await self.bot.db.execute(query, res['id'])
+        await ctx.send(f'Your reminder to `{res["reminder"]}` has been removed.')
 
 
 def setup(bot):
