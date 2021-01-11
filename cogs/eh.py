@@ -17,9 +17,9 @@ class EH(commands.Cog):
             await ctx.send(f'Incorrect usage! To see how to use this command, '
                            f'try `$help {ctx.command.qualified_name}`.')
         else:
-            etype = type(exc)
-            trace = exc.__traceback__
-            lines = traceback.format_exception(etype, exc, trace)
+            etype = type(error)
+            trace = error.__traceback__
+            lines = traceback.format_exception(etype, error, trace)
             traceback_text = ''.join(lines)
             embed = discord.Embed(
                 title=f'Error in ${ctx.command.qualified_name}',
