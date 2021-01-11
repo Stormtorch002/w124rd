@@ -22,7 +22,7 @@ class Aki(commands.Cog):
         progression = 80
         while True:
             embed = discord.Embed(title=q, color=discord.Colour.red())
-            embed.set_author(name=f'{ctx.author} - Question {aki.step}',
+            embed.set_author(name=f'{ctx.author} - Question {aki.step + 1}',
                              icon_url=str(ctx.author.avatar_url_as(format='png')))
             embed.set_footer(text="y = Yes, n = No, idk = I don't know, p = Probably, pn = Probably not, b = back")
             await ctx.send(embed=embed)
