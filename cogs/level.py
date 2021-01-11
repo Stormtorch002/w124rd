@@ -337,9 +337,9 @@ class Levels(commands.Cog):
                    VALUES ($1, $2, $3, $4)
                    ON CONFLICT (user_id)
                    DO UPDATE
-                   SET image = $3
+                   SET color = $4
                 '''
-        await self.bot.db.execute(query, ctx.author.id, 0, self.zerotwo, 'c0ffee')
+        await self.bot.db.execute(query, ctx.author.id, 0, self.zerotwo, h)
 
         image = Image.new(mode='RGB', color=h, size=(128, 128))
         buffer = BytesIO()
