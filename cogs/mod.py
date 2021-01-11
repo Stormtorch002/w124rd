@@ -136,19 +136,30 @@ class Mod(commands.Cog):
     @commands.has_any_role(*ALL_MODS)
     async def warn_cmd(self, ctx, member: discord.Member, *, reason):
         count = await self.warn(member, ctx.author, reason)
-        await ctx.send(f'{member.mention} **was warned** // `{reason}`\n\nTotal warnings: {count}')
+        embed = discord.Embed(
+            color=member.color,
+            title='Warn Issued'
+        ).set_author(
+            name=str(member), icon_url=member.avatar_url_as(format='png')
+        ).add_field(
+            name='Reason', value=f'`{reason}`'
+        ).add_field(
+            name='Total Warnings', value=f'**{count}**'
+        )
+        await ctx.send(embed=embed)
 
     @commands.group(invoke_without_command=True, aliases=['del', 'remove', 'delete'])
     @commands.has_any_role(*MODS)
     async def clearwarn(self, ctx, warning_ids: commands.Greedy[int]):
         cleared = {}
         for wid in warning_ids:
-            if await self.db.fetchrow('SELECT id FROM warns WHERE user_id = $1', wid):
-                user = self.bot.get_user(wid)
+            res = await self.db.fetchrow('SELECT user_id FROM warns WHERE id = $1', wid)
+            if res:
+                user = self.bot.get_user(res['user_id'])
                 if user in cleared:
                     cleared[user] += 1
                 else:
-                    cleared[user] = 0
+                    cleared[user] = 1
 
         query = 'DELETE FROM warns WHERE "id" = ANY($1)'
         await self.db.execute(query, warning_ids)
@@ -285,7 +296,7 @@ class Mod(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         query = 'SELECT id FROM mutes WHERE user_id = $1'
-        if await self.db.execute(query, member.id):
+        if await self.db.fetchrow(query, member.id):
             await member.add_roles(member.guild.get_role(self.muted))
 
     @commands.command()
