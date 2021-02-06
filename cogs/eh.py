@@ -10,7 +10,7 @@ class EH(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
-        if isinstance(error, commands.MissingPermissions):
+        if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingAnyRole):
             await ctx.send(f'You don\'t have enough perms to use this command ((')
         elif isinstance(error, commands.BadArgument) or \
                 isinstance(error, commands.MissingRequiredArgument):

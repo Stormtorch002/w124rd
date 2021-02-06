@@ -364,6 +364,7 @@ class Giveaway(commands.Cog):
             embed = discord.Embed.from_dict(embed)
         embed = await channel.send(embed=embed)
         await embed.add_reaction(emoji)
+        await channel.send('<@&728666898597937163>')
         self.msg_ids.append(embed.id)
         query = '''INSERT INTO gvwys (ch_id, msg_id, prize, winners, host_id, role_id, "end", ended, emoji) 
                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)

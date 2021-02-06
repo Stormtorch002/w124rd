@@ -26,8 +26,9 @@ class Mod(commands.Cog):
             'nigger',
             'fag',
             'retard',
-            'chingchong'
+            'cunt'
         )
+        self.bot.swears = self.swears
         self.est = timezone('US/Eastern')
         self.muted = 750144772559208599
         self.bot.loop.create_task(self.dispatch_bans())
@@ -100,13 +101,13 @@ class Mod(commands.Cog):
             for warn in warns:
                 if not user:
                     u = self.bot.get_user(warn["user_id"])
-                    u = u.mention or 'User left'
+                    u = u.mention if u else 'User left'
                     u = f'**User:** {u}\n'
                 else:
                     u = ''
                 if not mod:
                     m = self.bot.get_user(warn["mod_id"])
-                    m = m.mention or 'User left'
+                    m = m.mention if m else 'Mod left'
                     m = f'**Mod:** {m}\n'
                 else:
                     m = ''
@@ -190,22 +191,22 @@ class Mod(commands.Cog):
         await self.db.execute('DELETE FROM warns')
         await ctx.send('Cleared all warnings ))')
 
+    @commands.command()
+    async def howmanywarningsdoihave(self, ctx):
+        await ctx.send((await self.bot.db.fetchrow('SELECT COUNT(id) FROM warns WHERE user_id = $1', ctx.author.id))['count'])
+
     @clearwarn.command()
     @commands.has_any_role(*MODS)
     async def latest(self, ctx):
-        async with self.bot.db.cursor() as cur:
-            query = 'SELECT user_id FROM warnings ORDER BY "id" DESC'
-            await cur.execute(query)
-            user_id = await cur.fetchone()
+        query = 'SELECT id, user_id FROM warns ORDER BY "id" DESC'
+        res = await self.bot.db.fetchrow(query)
+        user_id = res['user_id']
 
-            if user_id:
-                await ctx.send(f'Cleared warning from `{ctx.guild.get_member(user_id[0])}`')
-            else:
-                return await ctx.send('No warnings found.')
-
-            query = 'DELETE FROM warnings WHERE user_id = ?'
-            await cur.execute(query, (user_id[0],))
-            await self.bot.db.commit()
+        if user_id:
+            await self.bot.db.execute('DELETE FROM warns WHERE id = $1', res['id'])
+            await ctx.send(f'Cleared warning from `{ctx.guild.get_member(user_id)}`')
+        else:
+            return await ctx.send('No warnings found.')
 
     @commands.group(aliases=['warns'], invoke_without_command=True)
     @commands.has_any_role(*ALL_MODS)
@@ -388,8 +389,27 @@ class Mod(commands.Cog):
 
     @commands.command()
     @commands.has_any_role(*MODS)
-    async def purge(self, ctx, amount: int):
-        await ctx.channel.purge(limit=amount + 1)
+    async def purge(self, ctx, amount: int, user: discord.User = None):
+        if user:
+            
+            def check(m):
+                return m.author == user or m == ctx.message
+
+            msgs = []
+            i = 0
+            while True:
+                i += 1
+                async for msg in ctx.channel.history(limit=100):
+                    if check(msg):
+                        msgs.append(msg)
+                    if i >= 10 or len(msgs) == amount + 1 or len(msgs) >= 100:
+                        break
+                if i >= 10 or len(msgs) == amount + 1 or len(msgs) >= 100:
+                        break
+
+            await ctx.channel.delete_messages(msgs)
+            
+        await ctx.channel.purge(limit=amount + 1, check=check)
 
     @commands.command()
     @commands.has_any_role(*MODS)

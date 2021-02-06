@@ -34,7 +34,9 @@ class W124RD(commands.Bot):
             'cogs.snipe',
             'cogs.count',
             'cogs.reminder',
-            'cogs.eh'
+            'cogs.eh',
+            'cogs.image',
+            'cogs.starboard'
         )
         self.db = None
         self.slounge = None
@@ -104,13 +106,13 @@ async def sql(ctx, *, query):
 
 
 @w124rd.command()
-async def trump(ctx):
-    """Shows the amount of time before noon on January 20th (the time Trump's presidency will end)."""
+async def biden(ctx):
+    """Tbh I don't think Biden will run again"""
     est = timezone('US/Eastern')
-    kick = datetime(2021, 1, 20, hour=12).astimezone(est)
+    kick = datetime(2025, 1, 20, hour=12).astimezone(est)
     now = datetime.now().astimezone(est)
     delta = precisedelta((kick - now).total_seconds())
-    await ctx.send(f'Time until Trump gets kicked out:\n\n{delta}')
+    await ctx.send(f'Time until Biden\'s term ends:\n\n{delta}')
 
 
 @w124rd.command(name='translate', aliases=['googletrans', 'trans'])

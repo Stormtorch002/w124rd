@@ -39,21 +39,8 @@ class Chess(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.in_game = {}
+        self.in_game = []
         self.pattern = re.compile('^[A-Ha-h][1-8][A-Ha-h][1-8]$')
-        self.update_timers.start()
-
-    @tasks.loop(seconds=1)
-    async def update_timers(self):
-        for user in self.in_game:
-            if self.in_game[user]['draining']:
-                self.in_game[user]['seconds'] -= 1
-                if self.in_game[user]['seconds'] <= 0:
-                    opp = self.in_game[user]['opponent']
-                    self.in_game.pop(user)
-                    self.in_game.pop(opp)
-                    await user.send('You have run out of time! The victory automatically goes to your opponent.')
-                    await opp.send(f'Your opponent ({user}) has run out of time! You won.')
 
     @commands.command(name='chess')
     async def _chess(self, ctx, user: discord.Member, *, fen=None):
@@ -101,8 +88,11 @@ class Chess(commands.Cog):
             return await ctx.send("You took too long to say a time, I have timeout'd.")
 
         seconds = int(m.content) * 60
-        self.in_game[ctx.author] = {'seconds': seconds, 'opponent': user, 'draining': False}
-        self.in_game[user] = {'seconds': seconds, 'opponent': ctx.author, 'draining': False}
+        
+        wleft = seconds
+        bleft = seconds
+        self.in_game.append(ctx.author)
+        self.in_game.append(user)
 
         white = ctx.author
         black = user
@@ -127,37 +117,66 @@ class Chess(commands.Cog):
 
             while True:
                 check2_msg = await self.bot.wait_for('message', check=check2)
-                other = discord.utils.find(lambda u: self.in_game[u]['opponent'] == check2_msg.author, self.in_game)
+                if check2_msg.author == white:
+                    other = black 
+                    o_left = bleft
+                    u_left = wleft
+                else:
+                    u_left = bleft
+                    o_left = wleft
                 if check2_msg.content.lower() == timer:
-                    u_left = precisedelta(self.in_game[check2_msg.author]['seconds'])
-                    o_left = precisedelta(self.in_game[other]['seconds'])
                     await check2_msg.author.send(f'Your time left: `{u_left}`\nYour opponent time left: `{o_left}`')
                 else:
-                    self.in_game.pop(white)
-                    self.in_game.pop(black)
+                    self.in_game.remove(white)
+                    self.in_game.remove(black)
                     await check2_msg.author.send('**You lost - Resignation**')
                     await other.send('**You won - Resignation**')
                     return
 
         task = self.bot.loop.create_task(wait_for())
+        userd = False 
+        oppd = False
+
+        async def task2():
+            while True:
+                if black not in self.in_game or white not in self.in_game:
+                    return 
+                await asyncio.sleep(1)
+
+                wleft -= 1
+                bleft -= 1
+                if wleft <= 0:
+                    await white.send('**You lost - timeout**')
+                    await black.send('**You won - timeout**')
+                    self.in_game.remove(white)
+                    self.in_game.remove(black)
+                    return 
+                if bleft <= 0:
+                    await white.send('**You lost - timeout**')
+                    await black.send('**You won - timeout**')
+                    self.in_game.remove(white)
+                    self.in_game.remove(black)
+                    return 
 
         while True:
             if ctx.author in self.in_game and user in self.in_game:
 
                 if board.turn:
+                    left = wleft
                     user, opp = white, black
                 else:
+                    left = bleft
                     user, opp = black, white
 
-                self.in_game[user]['draining'] = True
-                self.in_game[opp]['draining'] = False
+                userd = True
+                oppd = False
 
                 def check(msg):
                     return msg.author.id == user.id and not msg.guild
 
                 while True:
                     try:
-                        m = await self.bot.wait_for('message', check=check, timeout=self.in_game[user]['seconds'])
+                        m = await self.bot.wait_for('message', check=check, timeout=left)
                     except asyncio.TimeoutError:
                         task.cancel()
                         self.in_game.pop(user)
@@ -168,37 +187,39 @@ class Chess(commands.Cog):
 
                     try:
                         board.push_san(m.content)
-                        self.in_game[user]['draining'] = False
+                        userd = False
                         break
                     except ValueError:
                         await user.send('Not a legal move.\n'
+                                        '- Check'
+                                        '- Pin'
                                         '- Uppercase all pieces and lowercase all squares\n'
                                         '- More than one of the same piece could move to the square')
 
                 if board.is_stalemate():
-                    self.in_game.pop(user)
-                    self.in_game.pop(opp)
+                    self.in_game.remove(user)
+                    self.in_game.remove(opp)
                     task.cancel()
                     await user.send('**Draw - Stalemate**')
                     await opp.send('**Draw - Stalemate**')
                     return
                 if board.is_checkmate():
-                    self.in_game.pop(user)
-                    self.in_game.pop(opp)
+                    self.in_game.remove(user)
+                    self.in_game.remove(opp)
                     task.cancel()
                     await user.send('**You won - Checkmate**')
                     await opp.send('**You lost - Checkmate**')
                     return
                 if board.is_insufficient_material():
-                    self.in_game.pop(user)
-                    self.in_game.pop(opp)
+                    self.in_game.remove(user)
+                    self.in_game.remove(opp)
                     task.cancel()
                     await user.send('**Draw - Insufficient Material**')
                     await opp.send('**Draw - Insufficient Material**')
                     return
                 if board.is_repetition(3):
-                    self.in_game.pop(user)
-                    self.in_game.pop(opp)
+                    self.in_game.remove(user)
+                    self.in_game.remove(opp)
                     task.cancel()
                     await user.send('**Draw - Threefold Repetition**')
                     await opp.send('**Draw - Threefold Repetition**')

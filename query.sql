@@ -8,3 +8,5 @@ CREATE TABLE IF NOT EXISTS xp ("id" SERIAL PRIMARY KEY, "user_id" BIGINT UNIQUE,
 CREATE TABLE IF NOT EXISTS snipes ("id" SERIAL PRIMARY KEY, "content" TEXT, "user_id" BIGINT, "url" TEXT, "delete" BOOLEAN, "time" INTEGER, "sent" INTEGER);
 CREATE TABLE IF NOT EXISTS counts ("id" SERIAL PRIMARY KEY, "user_id" BIGINT, "msg" TEXT, "count" INTEGER, "word" VARCHAR(32), "global" BOOLEAN);
 CREATE TABLE IF NOT EXISTS reminders ("id" SERIAL PRIMARY KEY, "user_id" BIGINT, "reminder" TEXT, "time" INTEGER);
+CREATE TABLE IF NOT EXISTS waifus ("id" SERIAL PRIMARY KEY, "subreddit" TEXT, "alias" TEXT);
+CREATE TABLE IF NOT EXISTS starboard ("id" SERIAL PRIMARY KEY, "msg_id" BIGINT, "embed_id" BIGINT);

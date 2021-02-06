@@ -213,7 +213,7 @@ class Tag(commands.Cog):
             args = args.split()
             if args[-1].isdigit():
                 page_num = int(args.pop(-1))
-            if user:
+            if args:
                 user = await commands.MemberConverter().convert(ctx, ' '.join(args))
 
         if not user:
